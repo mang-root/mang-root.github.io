@@ -1,138 +1,127 @@
-(function($){
-  // Search
-  var $searchWrap = $('#search-form-wrap'),
-    isSearchAnim = false,
-    searchAnimDuration = 200;
+/* ==========================================================================
+   Tance Mang — Personal Blog interactions
+   ========================================================================== */
 
-  var startSearchAnim = function(){
-    isSearchAnim = true;
-  };
+(function () {
+  'use strict';
 
-  var stopSearchAnim = function(callback){
-    setTimeout(function(){
-      isSearchAnim = false;
-      callback && callback();
-    }, searchAnimDuration);
-  };
+  /* -------- Mobile nav toggle -------- */
+  function initMobileNav() {
+    var toggle = document.querySelector('.mobile-nav-toggle');
+    var nav = document.querySelector('.main-nav');
+    if (!toggle || !nav) return;
 
-  $('.nav-search-btn').on('click', function(){
-    if (isSearchAnim) return;
-
-    startSearchAnim();
-    $searchWrap.addClass('on');
-    stopSearchAnim(function(){
-      $('.search-form-input').focus();
+    toggle.addEventListener('click', function (e) {
+      e.stopPropagation();
+      nav.classList.toggle('is-open');
     });
-  });
 
-  $('.search-form-input').on('blur', function(){
-    startSearchAnim();
-    $searchWrap.removeClass('on');
-    stopSearchAnim();
-  });
-
-  // Share
-  $('body').on('click', function(){
-    $('.article-share-box.on').removeClass('on');
-  }).on('click', '.article-share-link', function(e){
-    e.stopPropagation();
-
-    var $this = $(this),
-      url = $this.attr('data-url'),
-      encodedUrl = encodeURIComponent(url),
-      id = 'article-share-box-' + $this.attr('data-id'),
-      title = $this.attr('data-title'),
-      offset = $this.offset();
-
-    if ($('#' + id).length){
-      var box = $('#' + id);
-
-      if (box.hasClass('on')){
-        box.removeClass('on');
-        return;
+    document.addEventListener('click', function (e) {
+      if (!nav.contains(e.target) && !toggle.contains(e.target)) {
+        nav.classList.remove('is-open');
       }
-    } else {
-      var html = [
-        '<div id="' + id + '" class="article-share-box">',
-          '<input class="article-share-input" value="' + url + '">',
-          '<div class="article-share-links">',
-            '<a href="https://twitter.com/intent/tweet?text=' + encodeURIComponent(title) + '&url=' + encodedUrl + '" class="article-share-twitter" target="_blank" title="Twitter"><span class="fa fa-twitter"></span></a>',
-            '<a href="https://www.facebook.com/sharer.php?u=' + encodedUrl + '" class="article-share-facebook" target="_blank" title="Facebook"><span class="fa fa-facebook"></span></a>',
-            '<a href="http://pinterest.com/pin/create/button/?url=' + encodedUrl + '" class="article-share-pinterest" target="_blank" title="Pinterest"><span class="fa fa-pinterest"></span></a>',
-            '<a href="https://www.linkedin.com/shareArticle?mini=true&url=' + encodedUrl + '" class="article-share-linkedin" target="_blank" title="LinkedIn"><span class="fa fa-linkedin"></span></a>',
-          '</div>',
-        '</div>'
-      ].join('');
-
-      var box = $(html);
-
-      $('body').append(box);
-    }
-
-    $('.article-share-box.on').hide();
-
-    box.css({
-      top: offset.top + 25,
-      left: offset.left
-    }).addClass('on');
-  }).on('click', '.article-share-box', function(e){
-    e.stopPropagation();
-  }).on('click', '.article-share-box-input', function(){
-    $(this).select();
-  }).on('click', '.article-share-box-link', function(e){
-    e.preventDefault();
-    e.stopPropagation();
-
-    window.open(this.href, 'article-share-box-window-' + Date.now(), 'width=500,height=450');
-  });
-
-  // Caption
-  $('.article-entry').each(function(i){
-    $(this).find('img').each(function(){
-      if ($(this).parent().hasClass('fancybox') || $(this).parent().is('a')) return;
-
-      var alt = this.alt;
-
-      if (alt) $(this).after('<span class="caption">' + alt + '</span>');
-
-      $(this).wrap('<a href="' + this.src + '" data-fancybox=\"gallery\" data-caption="' + alt + '"></a>')
     });
-
-    $(this).find('.fancybox').each(function(){
-      $(this).attr('rel', 'article' + i);
-    });
-  });
-
-  if ($.fancybox){
-    $('.fancybox').fancybox();
   }
 
-  // Mobile nav
-  var $container = $('#container'),
-    isMobileNavAnim = false,
-    mobileNavAnimDuration = 200;
+  /* -------- Filter chips (Projects & Blog) -------- */
+  function initFilters() {
+    var chips = document.querySelectorAll('.filter-chip');
+    if (!chips.length) return;
 
-  var startMobileNavAnim = function(){
-    isMobileNavAnim = true;
-  };
+    chips.forEach(function (chip) {
+      chip.addEventListener('click', function () {
+        chips.forEach(function (c) { c.classList.remove('active'); });
+        chip.classList.add('active');
 
-  var stopMobileNavAnim = function(){
-    setTimeout(function(){
-      isMobileNavAnim = false;
-    }, mobileNavAnimDuration);
+        var filter = chip.getAttribute('data-filter');
+
+        // Projects page: each category section has data-category
+        var sections = document.querySelectorAll('section[data-category]');
+        if (sections.length) {
+          sections.forEach(function (s) {
+            var cat = s.getAttribute('data-category');
+            s.style.display = (filter === 'all' || cat === filter) ? '' : 'none';
+          });
+          return;
+        }
+
+        // Blog page: each article has data-tag (space-separated)
+        var items = document.querySelectorAll('.article-item');
+        items.forEach(function (item) {
+          var tagAttr = item.getAttribute('data-tag') || '';
+          var tags = tagAttr.split(/\s+/);
+          var show = filter === 'all' || tags.indexOf(filter) !== -1;
+          item.style.display = show ? '' : 'none';
+        });
+      });
+    });
   }
 
-  $('#main-nav-toggle').on('click', function(){
-    if (isMobileNavAnim) return;
+  /* -------- Reveal on scroll (lightweight) -------- */
+  function initReveal() {
+    if (!('IntersectionObserver' in window)) return;
+    var targets = document.querySelectorAll('.section, .about-block, .widget');
+    if (!targets.length) return;
 
-    startMobileNavAnim();
-    $container.toggleClass('mobile-nav-on');
-    stopMobileNavAnim();
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting) {
+          entry.target.style.opacity = '1';
+          entry.target.style.transform = 'translateY(0)';
+          io.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.08 });
+
+    targets.forEach(function (el) {
+      el.style.opacity = '0';
+      el.style.transform = 'translateY(20px)';
+      el.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+      io.observe(el);
+    });
+  }
+
+  /* -------- Subtle card tilt on hover (project cards) -------- */
+  function initCardTilt() {
+    var cards = document.querySelectorAll('.project-card');
+    cards.forEach(function (card) {
+      card.addEventListener('mousemove', function (e) {
+        var rect = card.getBoundingClientRect();
+        var x = (e.clientX - rect.left) / rect.width - 0.5;
+        var y = (e.clientY - rect.top) / rect.height - 0.5;
+        card.style.transform = 'translateY(-4px) rotateX(' + (-y * 4) + 'deg) rotateY(' + (x * 4) + 'deg)';
+      });
+      card.addEventListener('mouseleave', function () {
+        card.style.transform = '';
+      });
+    });
+  }
+
+  /* -------- Smooth anchor scroll -------- */
+  function initSmoothScroll() {
+    document.querySelectorAll('a[href^="#"]').forEach(function (link) {
+      link.addEventListener('click', function (e) {
+        var hash = link.getAttribute('href');
+        if (hash.length <= 1) return;
+        var target = document.querySelector(hash);
+        if (!target) return;
+        e.preventDefault();
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    });
+  }
+
+  /* -------- Init -------- */
+  function ready(fn) {
+    if (document.readyState !== 'loading') fn();
+    else document.addEventListener('DOMContentLoaded', fn);
+  }
+
+  ready(function () {
+    initMobileNav();
+    initFilters();
+    initReveal();
+    initCardTilt();
+    initSmoothScroll();
   });
-
-  $('#wrap').on('click', function(){
-    if (isMobileNavAnim || !$container.hasClass('mobile-nav-on')) return;
-
-    $container.removeClass('mobile-nav-on');
-  });
-})(jQuery);
+})();
